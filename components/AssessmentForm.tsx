@@ -3,6 +3,7 @@ import { ZED_PARAMETERS } from '../constants';
 import type { AssessmentData, AssessmentInput } from '../types';
 import { ZEDParameter } from '../types';
 import { motion } from 'framer-motion';
+import { Accordion } from './Accordion';
 
 interface AssessmentFormProps {
   onSubmit: (data: Omit<AssessmentData, 'clientName'>) => void;
@@ -31,7 +32,6 @@ const StarRating: React.FC<{ rating: number; onRate: (rating: number) => void }>
   );
 };
 
-
 const ParameterInput: React.FC<{ parameter: ZEDParameter; value: AssessmentInput; onChange: (value: AssessmentInput) => void; }> = ({ parameter, value, onChange }) => {
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
@@ -51,6 +51,12 @@ const ParameterInput: React.FC<{ parameter: ZEDParameter; value: AssessmentInput
       />
     </div>
   );
+};
+
+const PARAMETER_GROUPS = {
+  "Bronze Level (5 Parameters)": Object.values(ZEDParameter).slice(0, 5),
+  "Silver Level (Adds 9 Parameters)": Object.values(ZEDParameter).slice(5, 14),
+  "Gold Level (Adds 6 Parameters)": Object.values(ZEDParameter).slice(14),
 };
 
 export const AssessmentForm: React.FC<AssessmentFormProps> = ({ onSubmit }) => {
@@ -96,14 +102,24 @@ export const AssessmentForm: React.FC<AssessmentFormProps> = ({ onSubmit }) => {
               />
           </div>
       </div>
-      {ZED_PARAMETERS.map(param => (
-        <ParameterInput
-          key={param}
-          parameter={param}
-          value={formData[param]}
-          onChange={(value) => handleInputChange(param, value)}
-        />
-      ))}
+
+      <div className="space-y-4">
+        {Object.entries(PARAMETER_GROUPS).map(([groupTitle, params], index) => (
+          <Accordion key={groupTitle} title={groupTitle} defaultOpen={index === 0}>
+            <div className="space-y-4 pt-4">
+              {params.map(param => (
+                <ParameterInput
+                  key={param}
+                  parameter={param}
+                  value={formData[param]}
+                  onChange={(value) => handleInputChange(param, value)}
+                />
+              ))}
+            </div>
+          </Accordion>
+        ))}
+      </div>
+      
       <div className="flex justify-end pt-4">
         <motion.button
           type="submit"

@@ -1,5 +1,7 @@
 {
   "name": "ZED Consultancy Suite",
   "description": "An internal application for ZED consultants to conduct MSME assessments, generate AI-powered analysis, and track compliance with QCI/ZED requirements.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

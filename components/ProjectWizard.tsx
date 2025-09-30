@@ -1,13 +1,13 @@
 
-
 import React, { useState, useEffect } from 'react';
 import type { Project } from '../types';
 import { ProjectState } from '../types';
 import { projectStateMachine } from '../lib/stateMachine';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
-import { ExclamationTriangleIcon } from './icons/ExclamationTriangleIcon';
+import { InformationCircleIcon } from './icons/InformationCircleIcon';
 import { ClockIcon } from './icons/ClockIcon';
 import { transitionProjectState } from '../services/ragService';
+import { UdyamVerification } from './UdyamVerification';
 
 interface ProjectWizardProps {
   project: Project;
@@ -130,9 +130,8 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({ project, onClose, 
         try {
             const updatedProjectFromServer = await transitionProjectState(project.id, transition.nextState);
             onTransitionSuccess(updatedProjectFromServer);
-            onClose(); // Close modal on success
+            onClose();
         } catch (e: any) {
-            // The service function formats the error message from the server
             setError({ message: e.message });
         } finally {
             setIsTransitioning(false);
@@ -185,22 +184,19 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({ project, onClose, 
                                                     <div className="flex items-center">
                                                         {result.valid ? 
                                                             <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" /> : 
-                                                            <ExclamationTriangleIcon className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
+                                                            <InformationCircleIcon className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0" />
                                                         }
-                                                        <span className={result.valid ? 'text-slate-600 dark:text-slate-300' : 'text-slate-800 dark:text-slate-100 font-medium'}>{description}</span>
+                                                        <span className={result.valid ? 'text-slate-600 dark:text-slate-300 line-through' : 'text-slate-800 dark:text-slate-100 font-medium'}>{description}</span>
                                                     </div>
+                                                    {!result.valid && !isTaskCheck && <p className="pl-7 text-xs text-slate-500 dark:text-slate-400">{result.message}</p>}
                                                     {!result.valid && isTaskCheck && <IncompleteTasksList project={mockProject} />}
                                                 </li>
                                             );
                                         })}
                                     </ul>
-                                    {/* These controls are for UI demonstration only. The actual values are not saved from here. */}
                                     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3 text-sm">
                                         {project.current_state === ProjectState.BusinessReview && (
-                                             <label className="flex items-center cursor-pointer">
-                                                <input type="checkbox" checked={mockProject.has_udyam_check} onChange={e => setMockProject(p => ({...p, has_udyam_check: e.target.checked}))} className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                                                <span className="ml-2 text-slate-700 dark:text-slate-300">Simulate UDYAM Check Completion</span>
-                                            </label>
+                                            <UdyamVerification project={mockProject} onVerificationSuccess={(updatedProject) => setMockProject(updatedProject)} />
                                         )}
                                         {project.current_state === ProjectState.LevelChoice && (
                                             <div className="flex items-center space-x-4">

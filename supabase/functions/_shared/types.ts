@@ -125,6 +125,7 @@ export interface Project {
   current_state: ProjectState;
   certification_level?: 'Bronze' | 'Silver' | 'Gold';
   has_udyam_check?: boolean;
+  udyam_number?: string;
   man_days: number;
   has_msme_signoff: boolean;
   has_evidence_uploaded: boolean;

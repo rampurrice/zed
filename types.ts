@@ -126,6 +126,7 @@ export interface Project {
   current_state: ProjectState;
   certification_level?: 'Bronze' | 'Silver' | 'Gold';
   has_udyam_check?: boolean;
+  udyam_number?: string;
   man_days: number;
   has_msme_signoff: boolean;
   has_evidence_uploaded: boolean;
@@ -237,4 +238,20 @@ export interface AnalyticsData {
   deadlineCompliance: DeadlineCompliance;
   manDaysComparison: ManDaysComparison;
   successRatesBySector: SuccessRate[];
+}
+
+// --- Notification System Types ---
+export type NotificationType = 'success' | 'error' | 'info';
+
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: NotificationType;
+  duration?: number;
+  actions?: NotificationAction[];
 }

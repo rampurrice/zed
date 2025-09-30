@@ -63,7 +63,7 @@ export const projectStateMachine: Record<string, StateDefinition> = {
     validationChecks: []
   },
   [ProjectState.BusinessReview]: {
-    entryCriteria: ["Perform a detailed review of the client's existing processes, systems, and documentation against the UDYAM registration."],
+    entryCriteria: ["Perform a detailed review of the client's existing processes and verify their MSME status via direct UDYAM portal integration."],
     exitConditions: [{ nextState: ProjectState.LevelChoice, validations: [checkUdyam] }],
     validationChecks: [{ description: 'UDYAM Check Completed', check: checkUdyam }]
   },

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Project, Client, ProjectHubTab } from '../types';
 import { KnowledgeBase } from './KnowledgeBase';
@@ -8,6 +9,7 @@ import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
 import { ProjectWizard } from './ProjectWizard';
 import { ProjectState } from '../types';
 import { motion } from 'framer-motion';
+import { ProjectStatusGuide } from './ProjectStatusGuide';
 
 interface ProjectHubProps {
     project: Project;
@@ -16,7 +18,11 @@ interface ProjectHubProps {
     onProjectUpdate: (updatedProject: Project) => void;
 }
 
-const TABS: ProjectHubTab[] = ['Knowledge Base', 'Auto-Writer', 'Final Report'];
+const TABS: { label: string, componentKey: ProjectHubTab }[] = [
+    { label: 'Q&A and Documents', componentKey: 'Knowledge Base' },
+    { label: 'Reports & Action Plan', componentKey: 'Auto-Writer' },
+    { label: 'Certification Report', componentKey: 'Final Report' },
+];
 
 export const ProjectHub: React.FC<ProjectHubProps> = ({ project, client, onBack, onProjectUpdate }) => {
     const [activeTab, setActiveTab] = useState<ProjectHubTab>('Knowledge Base');
@@ -68,22 +74,26 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({ project, client, onBack,
                     )}
                 </div>
             </div>
+            
+            <div className="mb-6">
+                <ProjectStatusGuide project={project} />
+            </div>
 
             {/* Tab Navigation */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
                 <div className="flex border-b border-slate-200 dark:border-slate-700">
                     {TABS.map(tab => (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            key={tab.componentKey}
+                            onClick={() => setActiveTab(tab.componentKey)}
                             className={`relative px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 ${
-                                activeTab === tab 
+                                activeTab === tab.componentKey 
                                     ? 'text-primary-600 dark:text-primary-400' 
                                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'
                             }`}
                         >
-                            {tab}
-                            {activeTab === tab && (
+                            {tab.label}
+                            {activeTab === tab.componentKey && (
                                 <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 dark:bg-primary-400" layoutId="underline" />
                             )}
                         </button>

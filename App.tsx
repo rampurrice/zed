@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
@@ -12,7 +13,6 @@ import { analyzeAssessment } from "./services/geminiService";
 import type { AssessmentData, GeminiAnalysis, Client, Page, Project } from "./types";
 import { ProjectState } from "./types";
 
-import { AlertTriangleIcon } from "./components/icons/AlertTriangleIcon";
 import { PlusIcon } from "./components/icons/PlusIcon";
 
 import { Auth } from "./components/Auth";
@@ -21,6 +21,7 @@ import { Projects } from "./components/Projects";
 import { Dashboard } from "./components/Dashboard";
 import { ProjectHub } from "./components/ProjectHub";
 import { NewClientModal } from "./components/NewClientModal";
+import { useNotification } from "./hooks/useNotification";
 
 import { supabase } from "./lib/supabaseClient";
 
@@ -43,7 +44,6 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingClients, setIsFetchingClients] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -55,6 +55,8 @@ const App: React.FC = () => {
 
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const { addNotification } = useNotification();
 
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined" && window.localStorage) {
@@ -89,7 +91,6 @@ const App: React.FC = () => {
 
     const fetchAll = async () => {
       setIsFetchingClients(true);
-      setError(null);
       try {
         const { data: cData, error: cErr } = await supabase.from("clients").select("*");
         if (cErr) throw cErr;
@@ -103,7 +104,7 @@ const App: React.FC = () => {
         if (!cancelled) setProjects(pData || []);
       } catch (e: any) {
         if (!cancelled) {
-          setError(`Failed to fetch data: ${e.message}`);
+          addNotification(`Failed to fetch data: ${e.message}`, "error");
           console.error(e);
         }
       } finally {
@@ -119,8 +120,14 @@ const App: React.FC = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "projects" }, (payload) => {
         setProjects((prev) => {
           if (payload.eventType === "INSERT") return [...prev, payload.new as Project];
-          if (payload.eventType === "UPDATE")
-            return prev.map((p) => (p.id === (payload.new as Project).id ? (payload.new as Project) : p));
+          if (payload.eventType === "UPDATE") {
+             const updatedProject = payload.new as Project;
+             // Also update the selected project if it's the one being changed
+             if (selectedProject && selectedProject.id === updatedProject.id) {
+                setSelectedProject(updatedProject);
+             }
+             return prev.map((p) => (p.id === updatedProject.id ? updatedProject : p));
+          }
           if (payload.eventType === "DELETE")
             return prev.filter((p) => p.id !== (payload.old as Project).id);
           return prev;
@@ -132,35 +139,33 @@ const App: React.FC = () => {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [session]); // deliberately *not* depending on selectedClientId
+  }, [session, selectedProject]);
 
   // ----- Assessment / AI flows -----
   const handleAssessmentSubmit = useCallback(
     async (data: Omit<AssessmentData, "clientName">) => {
       const client = clients.find((c) => c.id === selectedClientId);
       if (!client) {
-        setError("Please select a valid client.");
+        addNotification("Please select a valid client.", "error");
         return;
       }
       setIsLoading(true);
-      setError(null);
       setAnalysis(null);
       try {
         const result = await analyzeAssessment({ ...data, clientName: client.name });
         setAnalysis(result);
       } catch (err) {
         console.error(err);
-        setError("Failed to generate AI analysis. Please check your connection/API key and try again.");
+        addNotification("Failed to generate AI analysis. Please check your connection/API key and try again.", "error");
       } finally {
         setIsLoading(false);
       }
     },
-    [selectedClientId, clients]
+    [selectedClientId, clients, addNotification]
   );
 
   const handleResetAssessment = useCallback(() => {
     setAnalysis(null);
-    setError(null);
   }, []);
 
   const handleCreateProject = useCallback(
@@ -190,15 +195,16 @@ const App: React.FC = () => {
           .single();
         if (error) throw error;
 
+        addNotification(`Project for "${client.name}" created successfully.`, "success");
         setProjects((prev) => [...prev, newProject]);
         handleResetAssessment();
         handleSelectProject(newProject);
       } catch (e: any) {
-        setError(`Failed to create project: ${e.message}`);
+        addNotification(`Failed to create project: ${e.message}`, "error");
         console.error(e);
       }
     },
-    [clients, selectedClientId, session, handleResetAssessment]
+    [clients, selectedClientId, session, handleResetAssessment, addNotification]
   );
 
   // ----- Project selection & updates -----
@@ -220,10 +226,11 @@ const App: React.FC = () => {
         .single();
       if (error) throw error;
 
+      addNotification(`Project "${newUpdatedProject.client_name}" updated.`, "info");
       setProjects((prev) => prev.map((p) => (p.id === newUpdatedProject.id ? newUpdatedProject : p)));
       setSelectedProject(newUpdatedProject);
     } catch (e: any) {
-      setError(`Failed to update project: ${e.message}`);
+      addNotification(`Failed to update project: ${e.message}`, "error");
       console.error(e);
     }
   };
@@ -241,8 +248,17 @@ const App: React.FC = () => {
       setClients((prev) => [...prev, newClient]);
       setSelectedClientId(newClient.id);
       setIsAddClientModalOpen(false);
+      addNotification(`Client "${newClient.name}" created successfully.`, "success", 6000, [
+        {
+          label: "Start Assessment",
+          onClick: () => {
+            setCurrentPage("New Assessment");
+            setSelectedClientId(newClient.id);
+          }
+        }
+      ]);
     } catch (e: any) {
-      setError(`Failed to save client: ${e.message}`);
+      addNotification(`Failed to save client: ${e.message}`, "error");
       console.error(e);
     }
   };
@@ -303,33 +319,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -20, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: "auto" }}
-                  exit={{ opacity: 0, y: -20, height: 0 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 dark:border-red-600 p-4 rounded-md mb-6"
-                  role="alert"
-                  aria-live="polite"
-                >
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <AlertTriangleIcon className="h-5 w-5 text-red-400 dark:text-red-500" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-red-700 dark:text-red-200">{error}</p>
-                      <button className="mt-2 text-sm font-semibold text-red-800 dark:text-red-300 hover:underline" onClick={handleResetAssessment}>
-                        Try Again
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {!isLoading && !error && (analysis && clients.find((c) => c.id === selectedClientId) ? (
+            {!isLoading && (analysis && clients.find((c) => c.id === selectedClientId) ? (
               <AnalysisDisplay
                 analysis={analysis}
                 onReset={handleResetAssessment}
@@ -384,9 +374,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen font-sans bg-slate-50 dark:bg-slate-900">
-      {/* header height = 64px (h-16) to match the grid calc below */}
       <Header session={session} theme={theme} toggleTheme={toggleTheme} />
-      {/* Sidebar + Main as grid; avoid ml-* hacks */}
       <div
         className={`grid h-[calc(100vh-64px)] transition-all ${
           isSidebarCollapsed ? "grid-cols-[80px_minmax(0,1fr)]" : "grid-cols-[256px_minmax(0,1fr)]"
@@ -400,7 +388,7 @@ const App: React.FC = () => {
         />
 
         <main role="main" className="relative overflow-y-auto p-6 sm:p-8 lg:p-10">
-          {isFetchingClients && (
+          {isLoading && (
             <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-10 flex items-center justify-center">
               <Loader />
             </div>
