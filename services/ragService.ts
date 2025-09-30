@@ -1,8 +1,9 @@
 
+
 import { supabase, supabaseUrl } from '../lib/supabaseClient';
-import type { RAGResponse, BaselineReport, ActionPlan, CompletionReport, AnalyticsData, Project } from '../types';
+import type { RAGResponse, BaselineReport, ActionPlan, CompletionReport, AnalyticsData, Project, ParameterInfo } from '../types';
 // FIX: Import ProjectState enum to use its members instead of string literals.
-import { ProjectState } from '../types';
+import { ProjectState, ZEDParameter } from '../types';
 
 /**
  * Uploads a document to be processed and embedded.
@@ -139,4 +140,15 @@ export const verifyUdyamNumber = async (projectId: string, udyamNumber: string):
         throw new Error(errorBody.error || `UDYAM verification failed: ${error.message}`);
     }
     return data;
+};
+
+export const getParameterInfo = async (parameterName: ZEDParameter): Promise<ParameterInfo> => {
+  const { data, error } = await supabase.functions.invoke('generate-parameter-info', {
+    body: { parameterName },
+  });
+  if (error) {
+     const errorBody = JSON.parse(error.context.responseText || '{}');
+     throw new Error(errorBody.error || `Failed to get parameter info: ${error.message}`);
+  }
+  return data;
 };

@@ -255,3 +255,9 @@ export interface Notification {
   duration?: number;
   actions?: NotificationAction[];
 }
+
+// --- AI Helper Types ---
+export interface ParameterInfo {
+  description: string;
+  complianceActions: string[];
+}

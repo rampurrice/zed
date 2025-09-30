@@ -4,15 +4,8 @@ export default {
   content: [
     './index.html',
     './index.tsx',
-    './App.{js,ts,jsx,tsx}',
-
-    // common folders
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-
-    // fallback for files at repo root (as in your screenshot)
-    './**/*.{js,ts,jsx,tsx,mdx,html}'
+    './App.tsx',
+    './components/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {

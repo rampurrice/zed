@@ -1,12 +1,9 @@
-
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
 
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
-import { AssessmentForm } from "./components/AssessmentForm";
-import { AnalysisDisplay } from "./components/AnalysisDisplay";
 import { Loader } from "./components/Loader";
 import { analyzeAssessment } from "./services/geminiService";
 
@@ -16,14 +13,20 @@ import { ProjectState } from "./types";
 import { PlusIcon } from "./components/icons/PlusIcon";
 
 import { Auth } from "./components/Auth";
-import { ClientManager } from "./components/ClientManager";
-import { Projects } from "./components/Projects";
-import { Dashboard } from "./components/Dashboard";
-import { ProjectHub } from "./components/ProjectHub";
 import { NewClientModal } from "./components/NewClientModal";
 import { useNotification } from "./hooks/useNotification";
 
 import { supabase } from "./lib/supabaseClient";
+import { FloatingChat } from "./components/FloatingChat";
+
+// --- Lazy-loaded Page Components for Code Splitting ---
+const AssessmentForm = lazy(() => import('./components/AssessmentForm').then(m => ({ default: m.AssessmentForm })));
+const AnalysisDisplay = lazy(() => import('./components/AnalysisDisplay').then(m => ({ default: m.AnalysisDisplay })));
+const ClientManager = lazy(() => import('./components/ClientManager').then(m => ({ default: m.ClientManager })));
+const Projects = lazy(() => import('./components/Projects').then(m => ({ default: m.Projects })));
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const ProjectHub = lazy(() => import('./components/ProjectHub').then(m => ({ default: m.ProjectHub })));
+
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -36,6 +39,12 @@ const pageTransition: Transition = {
   ease: "anticipate",
   duration: 0.4,
 };
+
+const SuspenseLoader: React.FC = () => (
+  <div className="flex w-full h-full items-center justify-center p-20">
+    <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
 
 const App: React.FC = () => {
   // ----- App State -----
@@ -305,7 +314,7 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-md">
-                <p className="text-slate-600 dark:text-slate-400 mb-4">No clients found. Please add a client to begin.</p>
+                <p className="text-slate-600 dark:text-slate-400 mb-4">To start a new assessment, first add your client's details.</p>
                 <motion.button
                   type="button"
                   onClick={() => setIsAddClientModalOpen(true)}
@@ -314,7 +323,7 @@ const App: React.FC = () => {
                   whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
-                  Add Your First Client
+                  Start New ZED Assessment
                 </motion.button>
               </div>
             )}
@@ -393,7 +402,11 @@ const App: React.FC = () => {
               <Loader />
             </div>
           )}
-          <div className="max-w-7xl mx-auto">{renderMainContent()}</div>
+          <div className="max-w-7xl mx-auto h-full">
+            <Suspense fallback={<SuspenseLoader />}>
+              {renderMainContent()}
+            </Suspense>
+          </div>
         </main>
       </div>
 
@@ -402,6 +415,7 @@ const App: React.FC = () => {
         onClose={() => setIsAddClientModalOpen(false)}
         onSave={handleSaveNewClient}
       />
+      <FloatingChat />
     </div>
   );
 };

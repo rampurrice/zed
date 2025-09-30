@@ -1,9 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { ZED_PARAMETERS } from '../constants';
-import type { AssessmentData, AssessmentInput } from '../types';
+import type { AssessmentData, AssessmentInput, ParameterInfo } from '../types';
 import { ZEDParameter } from '../types';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Accordion } from './Accordion';
+import { getParameterInfo } from '../services/ragService';
+import { InformationCircleIcon } from './icons/InformationCircleIcon';
+import { CheckBadgeIcon } from './icons/CheckBadgeIcon';
 
 interface AssessmentFormProps {
   onSubmit: (data: Omit<AssessmentData, 'clientName'>) => void;
@@ -33,18 +36,95 @@ const StarRating: React.FC<{ rating: number; onRate: (rating: number) => void }>
 };
 
 const ParameterInput: React.FC<{ parameter: ZEDParameter; value: AssessmentInput; onChange: (value: AssessmentInput) => void; }> = ({ parameter, value, onChange }) => {
+  const [info, setInfo] = useState<ParameterInfo | null>(null);
+  const [isInfoLoading, setIsInfoLoading] = useState(false);
+  const [isInfoVisible, setIsInfoVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleToggleInfo = async () => {
+    if (isInfoVisible) {
+      setIsInfoVisible(false);
+      return;
+    }
+
+    if (info) {
+      setIsInfoVisible(true);
+      return;
+    }
+
+    setIsInfoLoading(true);
+    setError(null);
+    try {
+      const result = await getParameterInfo(parameter);
+      setInfo(result);
+      setIsInfoVisible(true);
+    } catch (err: any) {
+      setError(err.message || "Could not load AI insights.");
+    } finally {
+      setIsInfoLoading(false);
+    }
+  };
+  
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-md border border-slate-200 dark:border-slate-700">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">{parameter}</h3>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center space-x-2">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200">{parameter}</h3>
+             <button
+                type="button"
+                onClick={handleToggleInfo}
+                className="text-slate-400 dark:text-slate-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                aria-label={`Get more info about ${parameter}`}
+            >
+                {isInfoLoading ? (
+                <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                <InformationCircleIcon className="w-5 h-5" />
+                )}
+            </button>
+        </div>
         <StarRating 
             rating={value.rating} 
             onRate={(newRating) => onChange({ ...value, rating: newRating })} 
         />
       </div>
+
+       <AnimatePresence>
+        {isInfoVisible && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
+              {error ? (
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              ) : info ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 dark:text-slate-300 italic">{info.description}</p>
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">Typical Compliance Actions:</h4>
+                    <ul className="space-y-1.5">
+                      {info.complianceActions.map((action, i) => (
+                        <li key={i} className="flex items-start text-sm text-slate-700 dark:text-slate-300">
+                          <CheckBadgeIcon className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <textarea
         rows={4}
-        className="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm p-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
+        className="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm p-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 mt-4"
         placeholder={`Enter observations for ${parameter}...`}
         value={value.notes}
         onChange={(e) => onChange({ ...value, notes: e.target.value })}
